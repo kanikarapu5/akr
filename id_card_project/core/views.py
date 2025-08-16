@@ -3,6 +3,7 @@ import uuid
 import zipfile
 import io
 import csv
+import os
 from django.http import HttpResponse
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
@@ -88,6 +89,31 @@ def referral_student_add(request, referral_code):
     return render(request, 'student_form.html', {'form': form, 'partner': partner})
 
 @login_required
+def student_add_by_institution(request):
+    if request.user.role != 'INSTITUTION':
+        return redirect('login')
+
+    if request.method == 'POST':
+        form = StudentForm(request.POST, request.FILES)
+        if form.is_valid():
+            student = form.save(commit=False)
+            student.institution = request.user.institution
+
+            photo_data = request.POST.get('photo_data')
+            if photo_data:
+                format, imgstr = photo_data.split(';base64,')
+                ext = format.split('/')[-1]
+                data = ContentFile(base64.b64decode(imgstr), name=f'{uuid.uuid4()}.{ext}')
+                student.photo = data
+
+            student.save()
+            return redirect('institution_dashboard')
+    else:
+        form = StudentForm()
+    return render(request, 'student_form.html', {'form': form})
+
+
+@login_required
 def institution_dashboard(request):
     if request.user.role != 'INSTITUTION':
         return redirect('login') # Or a custom access denied page
@@ -148,7 +174,8 @@ def export_data(request):
                 # Add photo to zip
                 if student.photo:
                     photo_path = student.photo.path
-                    photo_filename = f"{student.unique_id}.jpg" # Assuming jpg
+                    _, extension = os.path.splitext(student.photo.name)
+                    photo_filename = f"{student.unique_id}{extension}"
                     zip_file.write(photo_path, f'{class_name}/Photos/{photo_filename}')
 
             # Add CSV to zip
@@ -158,3 +185,51 @@ def export_data(request):
     response = HttpResponse(buffer, content_type='application/zip')
     response['Content-Disposition'] = 'attachment; filename="student_data.zip"'
     return response
+
+
+from django.contrib.auth.decorators import user_passes_test
+
+def admin_required(view_func):
+    return user_passes_test(lambda u: u.is_superuser)(view_func)
+
+@login_required
+@admin_required
+def user_list(request):
+    users = User.objects.filter(is_superuser=False)
+    return render(request, 'admin/user_list.html', {'users': users})
+
+class UserCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
+    model = User
+    form_class = PartnerSignUpForm # Using a generic form for creation
+    template_name = 'admin/user_form.html'
+    success_url = reverse_lazy('user_list')
+
+    def test_func(self):
+        return self.request.user.is_superuser
+
+    def form_valid(self, form):
+        user = form.save(commit=False)
+        user.set_password(form.cleaned_data.get('password'))
+        user.save()
+        if user.role == 'PARTNER':
+            Partner.objects.create(user=user)
+        elif user.role == 'INSTITUTION':
+            Institution.objects.create(user=user)
+        return redirect(self.success_url)
+
+class UserUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
+    model = User
+    fields = ['username', 'first_name', 'last_name', 'email', 'role']
+    template_name = 'admin/user_form.html'
+    success_url = reverse_lazy('user_list')
+
+    def test_func(self):
+        return self.request.user.is_superuser
+
+class UserDeleteView(LoginRequiredMixin, UserPassesTestMixin, DeleteView):
+    model = User
+    template_name = 'admin/user_confirm_delete.html'
+    success_url = reverse_lazy('user_list')
+
+    def test_func(self):
+        return self.request.user.is_superuser
