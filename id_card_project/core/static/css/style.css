@@ -1,0 +1,152 @@
+body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    margin: 0;
+    padding: 20px;
+    background-color: #f4f4f4;
+    color: #333;
+}
+
+h1, h2 {
+    color: #333;
+}
+
+.container {
+    max-width: 800px;
+    margin: auto;
+    background: white;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 20px;
+}
+
+th, td {
+    border: 1px solid #ddd;
+    padding: 12px;
+    text-align: left;
+}
+
+th {
+    background-color: #007bff;
+    color: white;
+}
+
+tr:nth-child(even) {
+    background-color: #f2f2f2;
+}
+
+.actions a {
+    text-decoration: none;
+    padding: 5px 10px;
+    margin-right: 5px;
+    border-radius: 5px;
+    color: white;
+}
+
+.actions a.edit { background-color: #ffc107; }
+.actions a.delete { background-color: #dc3545; }
+
+form {
+    margin-top: 20px;
+}
+
+input[type=text], input[type=email], input[type=password], select {
+    width: 100%;
+    padding: 12px;
+    margin: 8px 0;
+    display: inline-block;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    box-sizing: border-box;
+}
+
+button, a.button {
+    background-color: #007bff;
+    color: white;
+    padding: 14px 20px;
+    margin: 8px 0;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    text-decoration: none;
+    display: inline-block;
+}
+
+button:hover, a.button:hover {
+    background-color: #0056b3;
+}
+
+/* Responsive styles */
+@media screen and (max-width: 600px) {
+    table, thead, tbody, th, td, tr {
+        display: block;
+    }
+    thead tr {
+        position: absolute;
+        top: -9999px;
+        left: -9999px;
+    }
+    tr { border: 1px solid #ccc; }
+    td {
+        border: none;
+        border-bottom: 1px solid #eee;
+        position: relative;
+        padding-left: 50%;
+    }
+    td:before {
+        position: absolute;
+        top: 6px;
+        left: 6px;
+        width: 45%;
+        padding-right: 10px;
+        white-space: nowrap;
+        font-weight: bold;
+    }
+    td:nth-of-type(1):before { content: "Unique ID"; }
+    td:nth-of-type(2):before { content: "Name"; }
+    td:nth-of-type(3):before { content: "Father's Name"; }
+    td:nth-of-type(4):before { content: "Class"; }
+    td:nth-of-type(5):before { content: "Village"; }
+    td:nth-of-type(6):before { content: "Mobile"; }
+    td:nth-of-type(7):before { content: "Photo"; }
+    td:nth-of-type(8):before { content: "Actions"; }
+}
+
+/* Camera styles */
+#camera-container {
+    display: none;
+    margin-top: 20px;
+}
+#video-container {
+    position: relative;
+    margin-bottom: 10px;
+}
+#video {
+    width: 100%;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+}
+#passport-frame {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 70%; /* Aspect ratio 3.5:4.5 */
+    padding-top: 90%; /* 4.5 / 3.5 * 70% */
+    transform: translate(-50%, -50%);
+    border: 2px dashed white;
+    box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.5);
+}
+#canvas {
+    display: none;
+}
+#preview-container img {
+    max-width: 100%;
+    margin-top: 10px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+}

@@ -1,0 +1,49 @@
+{% extends 'base.html' %}
+
+{% block title %}Institution Dashboard{% endblock %}
+
+{% block content %}
+    <h1>Institution Dashboard</h1>
+    <h2>Your Students</h2>
+    <table>
+        <thead>
+            <tr>
+                <th>Unique ID</th>
+                <th>Name</th>
+                <th>Father's Name</th>
+                <th>Class</th>
+                <th>Village</th>
+                <th>Mobile</th>
+                <th>Photo</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for student in students %}
+            <tr>
+                <td>{{ student.unique_id }}</td>
+                <td>{{ student.student_name }}</td>
+                <td>{{ student.father_name }}</td>
+                <td>{{ student.class_name }}{% if student.class_name == 'Other' %} ({{ student.other_class }}){% endif %}</td>
+                <td>{{ student.village }}</td>
+                <td>{{ student.mobile_number }}</td>
+                <td>
+                    {% if student.photo %}
+                        <img src="{{ student.photo.url }}" alt="{{ student.student_name }}" width="50">
+                    {% else %}
+                        No Photo
+                    {% endif %}
+                </td>
+                <td class="actions">
+                    <a href="{% url 'student_update' student.pk %}" class="edit">Edit</a>
+                    <a href="{% url 'student_delete' student.pk %}" class="delete">Delete</a>
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="8">No students found.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+{% endblock %}
