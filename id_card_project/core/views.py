@@ -1,0 +1,160 @@
+import base64
+import uuid
+import zipfile
+import io
+import csv
+from django.http import HttpResponse
+from django.contrib.auth.decorators import login_required
+from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
+from django.core.files.base import ContentFile
+from django.shortcuts import render, redirect, get_object_or_404
+from django.views.generic import CreateView, UpdateView, DeleteView
+from django.urls import reverse_lazy
+from .forms import PartnerSignUpForm, InstitutionSignUpForm, StudentForm
+from .models import User, Partner, Institution, Student
+
+class PartnerSignUpView(CreateView):
+    model = User
+    form_class = PartnerSignUpForm
+    template_name = 'registration/signup_form.html'
+
+    def get_context_data(self, **kwargs):
+        kwargs['user_type'] = 'partner'
+        return super().get_context_data(**kwargs)
+
+    def form_valid(self, form):
+        user = form.save(commit=False)
+        user.set_password(form.cleaned_data['password'])
+        user.role = 'PARTNER'
+        user.save()
+        Partner.objects.create(user=user)
+        return redirect('login')
+
+class InstitutionSignUpView(CreateView):
+    model = User
+    form_class = InstitutionSignUpForm
+    template_name = 'registration/signup_form.html'
+
+    def get_context_data(self, **kwargs):
+        kwargs['user_type'] = 'institution'
+        return super().get_context_data(**kwargs)
+
+    def form_valid(self, form):
+        user = form.save(commit=False)
+        user.set_password(form.cleaned_data['password'])
+        user.role = 'INSTITUTION'
+        user.save()
+        Institution.objects.create(user=user)
+        return redirect('login')
+
+class StudentUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
+    model = Student
+    form_class = StudentForm
+    template_name = 'student_form.html'
+    success_url = reverse_lazy('institution_dashboard')
+
+    def test_func(self):
+        student = self.get_object()
+        return self.request.user.role == 'INSTITUTION' and student.institution == self.request.user.institution
+
+class StudentDeleteView(LoginRequiredMixin, UserPassesTestMixin, DeleteView):
+    model = Student
+    template_name = 'student_confirm_delete.html'
+    success_url = reverse_lazy('institution_dashboard')
+
+    def test_func(self):
+        student = self.get_object()
+        return self.request.user.role == 'INSTITUTION' and student.institution == self.request.user.institution
+
+def referral_student_add(request, referral_code):
+    partner = get_object_or_404(Partner, referral_code=referral_code)
+    if request.method == 'POST':
+        form = StudentForm(request.POST, request.FILES)
+        if form.is_valid():
+            student = form.save(commit=False)
+            student.partner = partner
+
+            photo_data = request.POST.get('photo_data')
+            if photo_data:
+                format, imgstr = photo_data.split(';base64,')
+                ext = format.split('/')[-1]
+                data = ContentFile(base64.b64decode(imgstr), name=f'{uuid.uuid4()}.{ext}')
+                student.photo = data
+
+            student.save()
+            return redirect('login') # Or a success page
+    else:
+        form = StudentForm()
+    return render(request, 'student_form.html', {'form': form, 'partner': partner})
+
+@login_required
+def institution_dashboard(request):
+    if request.user.role != 'INSTITUTION':
+        return redirect('login') # Or a custom access denied page
+
+    students = Student.objects.filter(institution=request.user.institution)
+    return render(request, 'institution_dashboard.html', {'students': students})
+
+@login_required
+def partner_dashboard(request):
+    if request.user.role != 'PARTNER':
+        return redirect('login')
+
+    students = Student.objects.filter(partner=request.user.partner)
+    return render(request, 'partner_dashboard.html', {'students': students})
+
+@login_required
+def admin_dashboard(request):
+    if not request.user.is_superuser:
+        return redirect('login')
+    return render(request, 'admin_dashboard.html')
+
+@login_required
+def export_data(request):
+    students = []
+    if request.user.role == 'ADMIN':
+        students = Student.objects.all()
+    elif request.user.role == 'PARTNER':
+        students = Student.objects.filter(partner=request.user.partner)
+    else:
+        return HttpResponse("Unauthorized", status=401)
+
+    # Group students by class
+    students_by_class = {}
+    for student in students:
+        class_name = student.class_name
+        if class_name == 'Other':
+            class_name = student.other_class if student.other_class else 'Other'
+
+        if class_name not in students_by_class:
+            students_by_class[class_name] = []
+        students_by_class[class_name].append(student)
+
+    # Create a zip file in memory
+    buffer = io.BytesIO()
+    with zipfile.ZipFile(buffer, 'w') as zip_file:
+        for class_name, students_in_class in students_by_class.items():
+            # Create CSV file in memory
+            csv_buffer = io.StringIO()
+            csv_writer = csv.writer(csv_buffer)
+            csv_writer.writerow(['Unique ID', 'Student Name', "Father's Name", 'Class', 'Village', 'Mobile Number'])
+
+            for student in students_in_class:
+                s_class = student.class_name
+                if s_class == 'Other':
+                    s_class = student.other_class
+                csv_writer.writerow([student.unique_id, student.student_name, student.father_name, s_class, student.village, student.mobile_number])
+
+                # Add photo to zip
+                if student.photo:
+                    photo_path = student.photo.path
+                    photo_filename = f"{student.unique_id}.jpg" # Assuming jpg
+                    zip_file.write(photo_path, f'{class_name}/Photos/{photo_filename}')
+
+            # Add CSV to zip
+            zip_file.writestr(f'{class_name}/student_data.csv', csv_buffer.getvalue())
+
+    buffer.seek(0)
+    response = HttpResponse(buffer, content_type='application/zip')
+    response['Content-Disposition'] = 'attachment; filename="student_data.zip"'
+    return response

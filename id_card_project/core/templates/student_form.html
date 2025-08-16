@@ -1,0 +1,129 @@
+{% extends 'base.html' %}
+
+{% block title %}Add Student{% endblock %}
+
+{% block content %}
+    <h2>Add Student</h2>
+    <form method="post" enctype="multipart/form-data" id="student-form">
+        {% csrf_token %}
+        {{ form.as_p }}
+        <input type="hidden" name="photo_data" id="photo-data">
+        <button type="button" id="start-camera" class="button">Start Camera</button>
+        <div id="camera-container">
+            <div id="video-container">
+                <video id="video" autoplay playsinline></video>
+                <div id="passport-frame"></div>
+            </div>
+            <button type="button" id="capture-photo" class="button">Capture Photo</button>
+            <button type="button" id="switch-camera" class="button">Switch Camera</button>
+            <canvas id="canvas"></canvas>
+            <div id="preview-container" style="display: none;">
+                <h3>Preview</h3>
+                <img id="photo-preview">
+                <button type="button" id="confirm-photo" class="button">Confirm Photo</button>
+                <button type="button" id="retake-photo" class="button delete">Take Another</button>
+            </div>
+        </div>
+        <button type="submit" id="submit-form">Submit</button>
+    </form>
+
+    <script>
+        const startCameraButton = document.getElementById('start-camera');
+        const cameraContainer = document.getElementById('camera-container');
+        const video = document.getElementById('video');
+        const captureButton = document.getElementById('capture-photo');
+        const switchCameraButton = document.getElementById('switch-camera');
+        const canvas = document.getElementById('canvas');
+        const previewContainer = document.getElementById('preview-container');
+        const photoPreview = document.getElementById('photo-preview');
+        const confirmButton = document.getElementById('confirm-photo');
+        const retakeButton = document.getElementById('retake-photo');
+        const photoDataInput = document.getElementById('photo-data');
+        const form = document.getElementById('student-form');
+        const photoField = document.querySelector('[name=photo]');
+
+        let stream;
+        let currentFacingMode = 'user'; // 'user' for front, 'environment' for back
+
+        startCameraButton.addEventListener('click', () => {
+            cameraContainer.style.display = 'block';
+            startCamera();
+        });
+
+        async function startCamera() {
+            if (stream) {
+                stream.getTracks().forEach(track => track.stop());
+            }
+            const constraints = {
+                video: {
+                    facingMode: currentFacingMode,
+                    width: { ideal: 1280 },
+                    height: { ideal: 720 }
+                }
+            };
+            try {
+                stream = await navigator.mediaDevices.getUserMedia(constraints);
+                video.srcObject = stream;
+            } catch (err) {
+                console.error("Error accessing camera: ", err);
+                alert('Could not access the camera. Please make sure you have given permission.');
+            }
+        }
+
+        switchCameraButton.addEventListener('click', () => {
+            currentFacingMode = currentFacingMode === 'user' ? 'environment' : 'user';
+            startCamera();
+        });
+
+        captureButton.addEventListener('click', () => {
+            const passportFrame = document.getElementById('passport-frame');
+
+            const videoRect = video.getBoundingClientRect();
+            const frameRect = passportFrame.getBoundingClientRect();
+
+            const scaleX = video.videoWidth / videoRect.width;
+            const scaleY = video.videoHeight / videoRect.height;
+
+            const sx = (frameRect.left - videoRect.left) * scaleX;
+            const sy = (frameRect.top - videoRect.top) * scaleY;
+            const sWidth = frameRect.width * scaleX;
+            const sHeight = frameRect.height * scaleY;
+
+            canvas.width = 350; // Standard passport photo width
+            canvas.height = 450; // Standard passport photo height
+
+            const context = canvas.getContext('2d');
+            context.drawImage(video, sx, sy, sWidth, sHeight, 0, 0, canvas.width, canvas.height);
+
+            photoPreview.src = canvas.toDataURL('image/jpeg');
+            previewContainer.style.display = 'block';
+            video.style.display = 'none';
+            captureButton.style.display = 'none';
+            switchCameraButton.style.display = 'none';
+        });
+
+        confirmButton.addEventListener('click', () => {
+            const imageDataUrl = canvas.toDataURL('image/jpeg');
+            photoDataInput.value = imageDataUrl;
+
+            // Stop the camera
+            if (stream) {
+                stream.getTracks().forEach(track => track.stop());
+            }
+            cameraContainer.style.display = 'none';
+            previewContainer.style.display = 'none';
+            video.style.display = 'block';
+            captureButton.style.display = 'inline-block';
+            switchCameraButton.style.display = 'inline-block';
+            startCameraButton.textContent = "Retake Photo";
+        });
+
+        retakeButton.addEventListener('click', () => {
+            previewContainer.style.display = 'none';
+            video.style.display = 'block';
+            captureButton.style.display = 'inline-block';
+            switchCameraButton.style.display = 'inline-block';
+        });
+
+    </script>
+{% endblock %}
