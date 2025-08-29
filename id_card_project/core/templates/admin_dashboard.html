@@ -5,5 +5,7 @@
 {% block content %}
     <h1>Admin Dashboard</h1>
     <a href="{% url 'user_list' %}" class="button">Manage Users</a>
-    <a href="{% url 'export_data' %}" class="button">Download All Student Data</a>
+    <h2>Download All Student Data</h2>
+    <a href="{% url 'export_data' %}?format=csv" class="button">Download as CSV</a>
+    <a href="{% url 'export_data' %}?format=xlsx" class="button">Download as XLSX</a>
 {% endblock %}

@@ -55,6 +55,10 @@ form {
     margin-top: 20px;
 }
 
+form p {
+    margin-bottom: 15px;
+}
+
 input[type=text], input[type=email], input[type=password], select {
     width: 100%;
     padding: 12px;
@@ -115,6 +119,80 @@ button:hover, a.button:hover {
     td:nth-of-type(6):before { content: "Mobile"; }
     td:nth-of-type(7):before { content: "Photo"; }
     td:nth-of-type(8):before { content: "Actions"; }
+
+    .container {
+        padding: 10px;
+        box-shadow: none;
+    }
+    input[type=text], input[type=email], input[type=password], select, button, a.button {
+        width: 100%;
+        box-sizing: border-box;
+        padding: 15px;
+    }
+    h1 { font-size: 1.8em; }
+    h2 { font-size: 1.5em; }
+}
+
+/* Navigation styles */
+header {
+    background-color: #007bff;
+    padding: 10px 20px;
+    color: white;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+nav .nav-container {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    max-width: 800px;
+    margin: auto;
+}
+
+.brand {
+    font-size: 1.5em;
+    font-weight: bold;
+    color: white;
+    text-decoration: none;
+}
+
+.nav-links a {
+    color: white;
+    text-decoration: none;
+    margin-left: 20px;
+}
+
+.nav-links a:hover {
+    text-decoration: underline;
+}
+
+/* Messages */
+.messages {
+    padding: 15px;
+    margin-bottom: 20px;
+    border-radius: 4px;
+    list-style: none;
+}
+.messages .success {
+    background-color: #d4edda;
+    color: #155724;
+    border: 1px solid #c3e6cb;
+}
+.messages .error {
+    background-color: #f8d7da;
+    color: #721c24;
+    border: 1px solid #f5c6cb;
+}
+
+
+/* Referral Link */
+.referral-link-container {
+    display: flex;
+    margin-bottom: 20px;
+}
+.referral-link-container input {
+    flex-grow: 1;
+    margin-right: 10px;
 }
 
 /* Camera styles */

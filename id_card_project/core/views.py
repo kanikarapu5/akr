@@ -5,12 +5,13 @@ import io
 import csv
 import os
 from django.http import HttpResponse
+from openpyxl import Workbook
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.core.files.base import ContentFile
 from django.shortcuts import render, redirect, get_object_or_404
 from django.views.generic import CreateView, UpdateView, DeleteView
-from django.urls import reverse_lazy
+from django.urls import reverse_lazy, reverse
 from .forms import PartnerSignUpForm, InstitutionSignUpForm, StudentForm
 from .models import User, Partner, Institution, Student
 
@@ -127,7 +128,15 @@ def partner_dashboard(request):
         return redirect('login')
 
     students = Student.objects.filter(partner=request.user.partner)
-    return render(request, 'partner_dashboard.html', {'students': students})
+
+    referral_path = reverse('referral_student_add', kwargs={'referral_code': request.user.partner.referral_code})
+    referral_link = request.build_absolute_uri(referral_path)
+
+    context = {
+        'students': students,
+        'referral_link': referral_link,
+    }
+    return render(request, 'partner_dashboard.html', context)
 
 @login_required
 def admin_dashboard(request):
@@ -137,6 +146,8 @@ def admin_dashboard(request):
 
 @login_required
 def export_data(request):
+    export_format = request.GET.get('format', 'csv') # default to csv
+
     students = []
     if request.user.role == 'ADMIN':
         students = Student.objects.all()
@@ -160,26 +171,56 @@ def export_data(request):
     buffer = io.BytesIO()
     with zipfile.ZipFile(buffer, 'w') as zip_file:
         for class_name, students_in_class in students_by_class.items():
-            # Create CSV file in memory
-            csv_buffer = io.StringIO()
-            csv_writer = csv.writer(csv_buffer)
-            csv_writer.writerow(['Unique ID', 'Student Name', "Father's Name", 'Class', 'Village', 'Mobile Number'])
 
-            for student in students_in_class:
-                s_class = student.class_name
-                if s_class == 'Other':
-                    s_class = student.other_class
-                csv_writer.writerow([student.unique_id, student.student_name, student.father_name, s_class, student.village, student.mobile_number])
+            if export_format == 'xlsx':
+                # Create XLSX file in memory
+                workbook = Workbook()
+                worksheet = workbook.active
+                worksheet.title = "Students"
+                header = ['Unique ID', 'Student Name', "Father's Name", 'Class', 'Village', 'Mobile Number']
+                worksheet.append(header)
 
-                # Add photo to zip
-                if student.photo:
-                    photo_path = student.photo.path
-                    _, extension = os.path.splitext(student.photo.name)
-                    photo_filename = f"{student.unique_id}{extension}"
-                    zip_file.write(photo_path, f'{class_name}/Photos/{photo_filename}')
+                for student in students_in_class:
+                    s_class = student.class_name
+                    if s_class == 'Other':
+                        s_class = student.other_class
+                    worksheet.append([student.unique_id, student.student_name, student.father_name, s_class, student.village, student.mobile_number])
 
-            # Add CSV to zip
-            zip_file.writestr(f'{class_name}/student_data.csv', csv_buffer.getvalue())
+                    # Add photo to zip
+                    if student.photo:
+                        photo_path = student.photo.path
+                        _, extension = os.path.splitext(student.photo.name)
+                        photo_filename = f"{student.unique_id}{extension}"
+                        zip_file.write(photo_path, f'{class_name}/Photos/{photo_filename}')
+
+                # Save workbook to a buffer and add to zip
+                excel_buffer = io.BytesIO()
+                workbook.save(excel_buffer)
+                excel_buffer.seek(0)
+                zip_file.writestr(f'{class_name}/student_data.xlsx', excel_buffer.getvalue())
+
+            else: # Default to CSV
+                # Create CSV file in memory
+                csv_buffer = io.StringIO()
+                csv_writer = csv.writer(csv_buffer)
+                csv_writer.writerow(['Unique ID', 'Student Name', "Father's Name", 'Class', 'Village', 'Mobile Number'])
+
+                for student in students_in_class:
+                    s_class = student.class_name
+                    if s_class == 'Other':
+                        s_class = student.other_class
+                    csv_writer.writerow([student.unique_id, student.student_name, student.father_name, s_class, student.village, student.mobile_number])
+
+                    # Add photo to zip
+                    if student.photo:
+                        photo_path = student.photo.path
+                        _, extension = os.path.splitext(student.photo.name)
+                        photo_filename = f"{student.unique_id}{extension}"
+                        zip_file.write(photo_path, f'{class_name}/Photos/{photo_filename}')
+
+                # Add CSV to zip
+                zip_file.writestr(f'{class_name}/student_data.csv', csv_buffer.getvalue())
+
 
     buffer.seek(0)
     response = HttpResponse(buffer, content_type='application/zip')
@@ -188,6 +229,34 @@ def export_data(request):
 
 
 from django.contrib.auth.decorators import user_passes_test
+from django.contrib import messages
+from .forms import PasswordResetForm
+from django.shortcuts import render
+
+def home(request):
+    if request.user.is_authenticated:
+        if request.user.role == 'ADMIN':
+            return redirect('admin_dashboard')
+        elif request.user.role == 'PARTNER':
+            return redirect('partner_dashboard')
+        elif request.user.role == 'INSTITUTION':
+            return redirect('institution_dashboard')
+    return render(request, 'home.html')
+
+@login_required
+@user_passes_test(lambda u: u.is_superuser)
+def admin_reset_password(request, pk):
+    user_to_reset = get_object_or_404(User, pk=pk)
+    if request.method == 'POST':
+        form = PasswordResetForm(request.POST)
+        if form.is_valid():
+            user_to_reset.set_password(form.cleaned_data['new_password'])
+            user_to_reset.save()
+            messages.success(request, f"Password for {user_to_reset.username} has been reset successfully.")
+            return redirect('user_list')
+    else:
+        form = PasswordResetForm()
+    return render(request, 'admin/password_reset_form.html', {'form': form, 'user_to_reset': user_to_reset})
 
 def admin_required(view_func):
     return user_passes_test(lambda u: u.is_superuser)(view_func)

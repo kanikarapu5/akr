@@ -7,8 +7,41 @@
     <link rel="stylesheet" type="text/css" href="{% static 'css/style.css' %}">
 </head>
 <body>
+    <header>
+        <nav>
+            <div class="nav-container">
+                <a href="/" class="brand">ID Card App</a>
+                <div class="nav-links">
+                    {% if user.is_authenticated %}
+                        {% if user.role == 'ADMIN' %}
+                            <a href="{% url 'admin_dashboard' %}">Dashboard</a>
+                            <a href="{% url 'user_list' %}">Manage Users</a>
+                        {% elif user.role == 'PARTNER' %}
+                            <a href="{% url 'partner_dashboard' %}">Dashboard</a>
+                        {% elif user.role == 'INSTITUTION' %}
+                            <a href="{% url 'institution_dashboard' %}">Dashboard</a>
+                            <a href="{% url 'student_add' %}">Add Student</a>
+                        {% endif %}
+                        <a href="{% url 'logout' %}">Logout</a>
+                    {% else %}
+                        <a href="{% url 'login' %}">Login</a>
+                        <a href="{% url 'partner_signup' %}">Partner Signup</a>
+                        <a href="{% url 'institution_signup' %}">Institution Signup</a>
+                    {% endif %}
+                </div>
+            </div>
+        </nav>
+    </header>
     <div class="container">
+        {% if messages %}
+            <ul class="messages">
+                {% for message in messages %}
+                    <li{% if message.tags %} class="{{ message.tags }}"{% endif %}>{{ message }}</li>
+                {% endfor %}
+            </ul>
+        {% endif %}
         {% block content %}{% endblock %}
     </div>
+    {% block extra_js %}{% endblock %}
 </body>
 </html>
