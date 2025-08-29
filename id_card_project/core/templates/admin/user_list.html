@@ -22,6 +22,7 @@
                 <td>{{ user.get_role_display }}</td>
                 <td class="actions">
                     <a href="{% url 'user_update' user.pk %}" class="edit">Edit</a>
+                    <a href="{% url 'admin_reset_password' user.pk %}" class="edit" style="background-color: #17a2b8;">Reset Password</a>
                     <a href="{% url 'user_delete' user.pk %}" class="delete">Delete</a>
                 </td>
             </tr>

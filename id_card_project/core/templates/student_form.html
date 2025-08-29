@@ -42,6 +42,23 @@
         const form = document.getElementById('student-form');
         const photoField = document.querySelector('[name=photo]');
 
+        const classDropdown = document.getElementById('id_class_name');
+        const otherClassInput = document.getElementById('id_other_class');
+        const otherClassContainer = otherClassInput.parentElement;
+
+        function toggleOtherClass() {
+            if (classDropdown.value === 'Other') {
+                otherClassContainer.style.display = '';
+            } else {
+                otherClassContainer.style.display = 'none';
+                otherClassInput.value = ''; // Clear the input when hidden
+            }
+        }
+
+        // Run on page load
+        toggleOtherClass();
+        classDropdown.addEventListener('change', toggleOtherClass);
+
         let stream;
         let currentFacingMode = 'user'; // 'user' for front, 'environment' for back
 

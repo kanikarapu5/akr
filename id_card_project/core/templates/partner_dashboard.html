@@ -4,8 +4,18 @@
 
 {% block content %}
     <h1>Partner Dashboard</h1>
+
+    <h2>Your Unique Referral Link</h2>
+    <p>Share this link with institutions to add students under your partnership.</p>
+    <div class="referral-link-container">
+        <input type="text" value="{{ referral_link }}" id="referral-link" readonly>
+        <button onclick="copyToClipboard()" class="button">Copy Link</button>
+    </div>
+
     <h2>Your Referred Students</h2>
-    <a href="{% url 'export_data' %}" class="button">Download Data</a>
+    <h3>Download Data</h3>
+    <a href="{% url 'export_data' %}?format=csv" class="button">Download as CSV</a>
+    <a href="{% url 'export_data' %}?format=xlsx" class="button">Download as XLSX</a>
     <table>
         <thead>
             <tr>
@@ -44,4 +54,25 @@
             {% endfor %}
         </tbody>
     </table>
+
+{% block extra_js %}
+<script>
+function copyToClipboard() {
+  var copyText = document.getElementById("referral-link");
+  copyText.select();
+  copyText.setSelectionRange(0, 99999); /* For mobile devices */
+
+  navigator.clipboard.writeText(copyText.value).then(function() {
+    alert("Copied to clipboard: " + copyText.value);
+  }, function(err) {
+    // Fallback for older browsers
+    try {
+      document.execCommand("copy");
+      alert("Copied to clipboard: " + copyText.value);
+    } catch (err) {
+      alert("Could not copy text. Please copy it manually.");
+    }
+  });
+}
+</script>
 {% endblock %}
